@@ -14,10 +14,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $location = $_POST['location'];
     $quantity = intval($_POST['quantity']);
     $weight = floatval($_POST['weight']);
+    $category = $_POST["category"];
+    $image_path = "";
+    if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+        $target_dir = "uploads/";
+        $filename = time() . "_" . basename($_FILES["image"]["name"]);
+        $target_file = $target_dir . $filename;
+        move_uploaded_file($_FILES["image"]["tmp_name"], $target_file);
+        $image_path = $target_file;
+    }
     $user_id = $_SESSION['user_id'];
 
-    $stmt = $conn->prepare("INSERT INTO listings (title, description, price, location, quantity, weight, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param("ssdsddi", $title, $description, $price, $location, $quantity, $weight, $user_id);
+    $stmt = $conn->prepare("INSERT INTO listings (user_id, title, description, price, location, quantity, weight, image_path, category)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param("issdsdsss", $user_id, $title, $description, $price, $location, $quantity, $weight, $image_path, $category);
     $stmt->execute();
 
     header('Location: listings.php');
@@ -42,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   </header>
 
   <main class="container">
-    <form action="create_listing.php" method="POST" class="form-container" id="create-listing-form" novalidate>
+    <form action="create_listing.php" method="POST" enctype="multipart/form-data" class="form-container" id="create-listing-form" novalidate>
       <h2>Create Listing</h2>
       <div class="form-group">
         <label for="title">Title</label>
@@ -70,10 +80,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <input type="number" id="weight" name="weight" placeholder="Weight (kg)" step="0.1" min="0" required>
       </div>
       <div class="form-group">
-        <label for="image">Image (Optional)</label>
-        <input type="file" id="image" name="image" accept="image/*">
-        <div class="image-preview" id="image-preview"></div>
+        <label>Category:</label><br>
+          <select name="category" required>
+            <option value="">Select a category</option>
+            <option value="Electronics">Electronics</option>
+            <option value="Clothing">Clothing</option>
+            <option value="Books">Books</option>
+            <option value="Home & Kitchen">Home & Kitchen</option>
+            <option value="Beauty & Personal Care">Beauty & Personal Care</option>
+            <option value="Health & Wellness">Health & Wellness</option>
+            <option value="Toys & Games">Toys & Games</option>
+            <option value="Sports & Outdoors">Sports & Outdoors</option>
+            <option value="Automotive">Automotive</option>
+            <option value="Pet Supplies">Pet Supplies</option>
+            <option value="Jewelry & Accessories">Jewelry & Accessories</option>
+            <option value="Shoes">Shoes</option>
+            <option value="Office Supplies">Office Supplies</option>
+            <option value="Tools & DIY">Tools & DIY</option>
+            <option value="Music & Instruments">Music & Instruments</option>
+            <option value="Movies & TV">Movies & TV</option>
+            <option value="Groceries">Groceries</option>
+            <option value="Garden & Outdoors">Garden & Outdoors</option>
+            <option value="Baby Products">Baby Products</option>
+            <option value="Art & Crafts">Art & Crafts</option>
+            <option value="Collectibles">Collectibles</option>
+            <option value="Mobile Phones">Mobile Phones</option>
+            <option value="Tablets & Accessories">Tablets & Accessories</option>
+            <option value="Computer Accessories">Computer Accessories</option>
+            <option value="Gaming">Gaming</option>
+            <option value="Watches">Watches</option>
+            <option value="Luggage & Travel">Luggage & Travel</option>
+          </select><br>
       </div>
+      <div class="form-group">
+        <label>Image:</label><br>
+        <input type="file" name="image" id="image" accept="image/*"><br>
+        <div id="image-preview" class="image-preview"></div><br>
+      </div>
+
       <button type="submit" class="form-button">Create Listing</button>
     </form>
   </main>

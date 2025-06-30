@@ -1,4 +1,13 @@
-<?php session_start(); ?>
+<?php 
+session_start(); 
+require 'db.php';
+
+$categories = [];
+$stmt = $conn->query("SELECT DISTINCT category FROM listings ORDER BY category ASC");
+if ($stmt) {
+    $categories = $stmt->fetch_all(MYSQLI_ASSOC);
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -34,7 +43,7 @@
         <!-- Cart Trigger -->
         <div id="cd-cart-trigger">
           <a class="cd-img-replace" href="#0" aria-label="Cart">
-            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M6.29977 5H21L19 12H7.37671M20 16H8L6 3H3M9 20C9 20.5523 8.55228 21 8 21C7.44772 21 7 20.5523 7 20C7 19.4477 7.44772 19 8 19C8.55228 19 9 19.4477 9 20ZM20 20C20 20.5523 19.5523 21 19 21C18.4477 21 18 20.5523 18 20C18 19.4477 18.4477 19 19 19C19.5523 19 20 19.4477 20 20Z"
                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
@@ -48,7 +57,7 @@
   <div id="cd-shadow-layer"></div>
   <div id="cd-cart">
     <div class="cart-header">
-      <h2>Cart</h2>
+      <h2>Your Cart</h2>
       <button class="close-cart" aria-label="Close cart">✕</button>
     </div>
     <ul class="cd-cart-items"></ul>
@@ -61,47 +70,67 @@
   <!-- Category Navigation -->
   <nav class="categories">
     <div class="container">
-      <button data-category="all">All</button>
-      <button data-category="vehicles">Vehicles</button>
-      <button data-category="electronics">Electronics</button>
-      <button data-category="property">Property</button>
-      <button data-category="home & garden">Home & Garden</button>
-      <button data-category="clothing">Clothing</button>
+      <button class="category-filter active" data-category="all">All</button>
+      <?php foreach ($categories as $cat): ?>
+        <button class="category-filter" data-category="<?= htmlspecialchars($cat['category']) ?>">
+          <?= htmlspecialchars($cat['category']) ?>
+        </button>
+      <?php endforeach; ?>
     </div>
   </nav>
 
 <?php
   include 'db.php';
-  $sql = "SELECT l.title, l.description, l.price, l.location, l.weight, l.quantity, u.username 
+  $sql = "SELECT l.id, l.title, l.description, l.price, l.location, l.weight, l.quantity, l.image_path, l.category, u.username 
           FROM listings l
           JOIN users u ON l.user_id = u.id
           ORDER BY l.id DESC";
   $result = $conn->query($sql);
 ?>
 
-  <main class="container grid">
-    <?php if ($result->num_rows > 0): ?>
-      <?php while ($row = $result->fetch_assoc()): ?>
-        <div class="card">
-          <img src="https://dummyimage.com/300x200/2a2a2a/ffffff&text=Listing" alt="Listing" loading="lazy" />
-          <div class="info">
-            <h3><?= htmlspecialchars($row['title']) ?></h3>
-            <p class="price">R<?= htmlspecialchars($row['price']) ?></p>
-            <p class="description"><?= htmlspecialchars($row['description']) ?></p>
-            <p><strong>Location:</strong> <?= htmlspecialchars($row['location']) ?></p>
-            <p><strong>Weight:</strong> <?= htmlspecialchars($row['weight']) ?> kg</p>
-            <p><strong>Available:</strong> <?= htmlspecialchars($row['quantity']) ?></p>
-            <p class="posted-by"><em>Posted by <?= htmlspecialchars($row['username']) ?></em></p>
-            <div class="actions">
-              <button class="add-cart-btn">Add to Cart</button>
-              <button class="buy-now-btn">Buy Now</button>
-            </div>
-          </div>
+  <main class="container">
+    <section class="listings-section">
+      <h2 class="section-title">Explore Listings</h2>
+      <?php if ($result->num_rows > 0): ?>
+        <div class="grid" id="listings-grid">
+          <?php while ($row = $result->fetch_assoc()): ?>
+            <article class="card">
+              <div class="card-image">
+                <img 
+                  src="<?= htmlspecialchars($row['image_path']) ?: 'https://dummyimage.com/300x200/2a2a2a/ffffff&text=No+Image' ?>" 
+                  alt="<?= htmlspecialchars($row['title']) ?>" 
+                  loading="lazy" 
+                />
+                <span class="category-badge"><?= htmlspecialchars($row['category'] ?: 'Uncategorized') ?></span>
+              </div>
+              <div class="card-content">
+                <h3 class="card-title"><?= htmlspecialchars($row['title']) ?></h3>
+                <p class="card-price">R<?= number_format($row['price'], 2) ?></p>
+                <p class="card-description"><?= htmlspecialchars(substr($row['description'], 0, 100)) . (strlen($row['description']) > 100 ? '...' : '') ?></p>
+                <div class="card-meta">
+                  <span><strong>Location:</strong> <?= htmlspecialchars($row['location']) ?></span>
+                  <span><strong>Weight:</strong> <?= htmlspecialchars($row['weight']) ?> kg</span>
+                  <span><strong>Available:</strong> <?= htmlspecialchars($row['quantity']) ?></span>
+                </div>
+                <p class="card-posted">Posted by <em><?= htmlspecialchars($row['username']) ?></em></p>
+                <div class="card-actions">
+                  <button class="add-cart-btn" 
+                          data-id="<?= $row['id'] ?>" 
+                          data-title="<?= htmlspecialchars($row['title']) ?>" 
+                          data-price="<?= $row['price'] ?>" 
+                          data-weight="<?= $row['weight'] ?>">
+                    Add to Cart
+                  </button>
+                  <button class="buy-now-btn">Buy Now</button>
+                </div>
+              </div>
+            </article>
+          <?php endwhile; ?>
         </div>
-      <?php endwhile; ?>
-    <?php else: ?>
-      <p class="no-listings">No listings available yet.</p>
-    <?php endif; ?>
+      <?php else: ?>
+        <p class="no-listings">No listings available yet.</p>
+      <?php endif; ?>
+    </section>
   </main>
 
   <!-- Footer -->
@@ -134,63 +163,64 @@
       const cards = document.querySelectorAll(".card");
       const closeCart = document.querySelector(".close-cart");
 
-      // Open cart panel
-      cartTrigger.addEventListener('click', (event) => {
-        event.preventDefault();
+      // Open cart
+      cartTrigger.addEventListener('click', (e) => {
+        e.preventDefault();
         cartPanel.classList.add('speed-in');
         shadowLayer.classList.add('is-visible');
         document.body.classList.add('overflow-hidden');
       });
 
-      // Close cart panel
+      // Close cart
       shadowLayer.addEventListener('click', () => {
         cartPanel.classList.remove('speed-in');
         shadowLayer.classList.remove('is-visible');
         document.body.classList.remove('overflow-hidden');
       });
 
-      // Close cart with button
       closeCart.addEventListener('click', () => {
         cartPanel.classList.remove('speed-in');
         shadowLayer.classList.remove('is-visible');
         document.body.classList.remove('overflow-hidden');
       });
 
-      // Search Functionality
+      // Search functionality
       searchInput.addEventListener("input", () => {
         const searchTerm = searchInput.value.toLowerCase();
         cards.forEach(card => {
-          const title = card.querySelector("h3").textContent.toLowerCase();
-          card.style.display = title.includes(searchTerm) ? "block" : "none";
+          const title = card.querySelector(".card-title").textContent.toLowerCase();
+          const description = card.querySelector(".card-description").textContent.toLowerCase();
+          const category = card.querySelector(".category-badge").textContent.toLowerCase();
+          card.style.display = title.includes(searchTerm) || description.includes(searchTerm) || category.includes(searchTerm) ? "block" : "none";
         });
       });
 
-      // Filter by category
+      // Category filter
       document.querySelectorAll(".categories button").forEach(button => {
         button.addEventListener("click", () => {
           const category = button.getAttribute("data-category").toLowerCase();
           cards.forEach(card => {
-            const title = card.querySelector("h3").textContent.toLowerCase();
-            card.style.display = category === "all" || title.includes(category) ? "block" : "none";
+            const cardCategory = card.querySelector(".category-badge").textContent.toLowerCase();
+            card.style.display = category === "all" || cardCategory.includes(category) ? "block" : "none";
           });
           document.querySelectorAll(".categories button").forEach(btn => btn.classList.remove("active"));
           button.classList.add("active");
         });
       });
 
-      // Add to Cart buttons
+      // Add to cart
       document.querySelectorAll(".add-cart-btn").forEach(button => {
         button.addEventListener("click", () => {
-          const card = button.closest(".card");
-          const title = card.querySelector("h3").textContent;
-          const priceText = card.querySelector(".price").textContent.replace(/[^\d.]/g, '');
-          const price = parseFloat(priceText);
+          const id = parseInt(button.getAttribute("data-id"));
+          const title = button.getAttribute("data-title");
+          const price = parseFloat(button.getAttribute("data-price"));
+          const weight = parseFloat(button.getAttribute("data-weight"));
 
-          const existing = cart.find(item => item.title === title);
+          const existing = cart.find(item => item.id === id);
           if (existing) {
             existing.qty += 1;
           } else {
-            cart.push({ title, price, qty: 1 });
+            cart.push({ id, title, price, weight, qty: 1 });
           }
 
           updateCartDisplay();
@@ -198,7 +228,6 @@
       });
     });
 
-    // Update cart display
     function updateCartDisplay() {
       const cartList = document.querySelector('.cd-cart-items');
       const cartTotal = document.getElementById('cart-total');
@@ -224,37 +253,52 @@
     }
 
     function saveCartToSession() {
-      const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
       fetch('save_cart.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          items: cart,
-          total: total.toFixed(2)
+          items: cart.map(item => ({
+            id: item.id,
+            title: item.title,
+            price: item.price,
+            weight: item.weight,
+            quantity: item.qty
+          }))
         })
       })
       .then(res => res.json())
       .then(data => {
-        if (data.success) {
-          console.log("Cart saved to session.");
-        } else {
-          console.error("Failed to save cart:", data.error);
+        if (!data.success) {
+          console.error('Failed to save cart:', data.error);
         }
-      });
-    }
-
-    function changeQty(index, delta) {
-      cart[index].qty += delta;
-      if (cart[index].qty <= 0) {
-        cart.splice(index, 1);
-      }
-      updateCartDisplay();
+      })
+      .catch(err => console.error('Cart save failed:', err));
     }
 
     function removeItem(index) {
       cart.splice(index, 1);
       updateCartDisplay();
     }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const profileBtn = document.querySelector('.profile-btn');
+        const dropdown = document.querySelector('.profile-menu .dropdown');
+
+        if (profileBtn && dropdown) {
+            profileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+            });
+
+            document.addEventListener('click', (e) => {
+            if (!e.target.closest('.profile-menu')) {
+                dropdown.style.display = 'none';
+            }
+            });
+        }
+    });
+
   </script>
+
 </body>
 </html>

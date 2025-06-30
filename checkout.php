@@ -1,35 +1,45 @@
 <?php
 session_start();
+require 'db.php';
 
-$cart = (isset($_SESSION['cart']) && is_array($_SESSION['cart'])) ? $_SESSION['cart'] : ['items' => [], 'total' => 0];
+$user_id = $_SESSION['user_id'] ?? null;
+if (!$user_id) {
+    echo "<p class='error'>Please log in to continue.</p>";
+    exit;
+}
 
-// PayFast Setup
+// Fetch cart items from database
+$stmt = $conn->prepare("SELECT c.quantity, l.title, l.price, l.weight FROM cart c JOIN listings l ON c.listing_id = l.id WHERE c.user_id = ?");
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$cartItems = $result->fetch_all(MYSQLI_ASSOC);
+
+$total = 0;
+$total_weight = 0;
+foreach ($cartItems as $item) {
+    $total += $item['price'] * $item['quantity'];
+    $total_weight += $item['weight'] * $item['quantity'];
+}
+
+// Weight + Price Based Shipping Logic
+if ($total_weight <= 2) {
+    $shipping_fee = $total < 500 ? 60 : ($total < 1000 ? 40 : 20);
+} elseif ($total_weight <= 5) {
+    $shipping_fee = $total < 500 ? 80 : ($total < 1000 ? 60 : 40);
+} else {
+    $shipping_fee = $total < 500 ? 100 : ($total < 1000 ? 80 : 60);
+}
+
+$amount = number_format($total + $shipping_fee, 2, '.', '');
 $merchant_id = "10000100";
 $merchant_key = "46f0cd694581a";
 $return_url = "http://localhost/ITECA_Project/success.php";
 $cancel_url = "http://localhost/ITECA_Project/cancel.php";
 $notify_url = "http://localhost/ITECA_Project/notify.php";
 $item_name = "Order from Mzansi Market";
-
-// Calculate shipping fee
-$shipping_fee = 0;
-$total_weight = 0;
-
-foreach ($cart['items'] as $item) {
-    $total_weight += $item['weight'] * $item['qty'];
-}
-
-// Weight + Price Based Shipping Logic
-if ($total_weight <= 2) {
-    $shipping_fee = $cart['total'] < 500 ? 60 : ($cart['total'] < 1000 ? 40 : 20);
-} elseif ($total_weight <= 5) {
-    $shipping_fee = $cart['total'] < 500 ? 80 : ($cart['total'] < 1000 ? 60 : 40);
-} else {
-    $shipping_fee = $cart['total'] < 500 ? 100 : ($cart['total'] < 1000 ? 80 : 60);
-}
-
-$amount = number_format($cart['total'] + $shipping_fee, 2, '.', '');
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -50,21 +60,21 @@ $amount = number_format($cart['total'] + $shipping_fee, 2, '.', '');
 
     <main class="container">
       <section class="checkout-section">
-        <?php if (count($cart['items']) > 0): ?>
+        <?php if (count($cartItems) > 0): ?>
           <div class="checkout-layout">
             <div class="summary-section">
               <h2>Order Summary</h2>
               <ul class="order-list">
-                <?php foreach ($cart['items'] as $item): ?>
+                <?php foreach ($cartItems as $item): ?>
                   <li>
-                    <span class="order-item"><?= $item['qty'] ?>x <?= htmlspecialchars($item['title']) ?></span>
-                    <span class="order-price">R<?= number_format($item['price'] * $item['qty'], 2) ?></span>
+                    <span class="order-item"><?= $item['quantity'] ?>x <?= htmlspecialchars($item['title']) ?></span>
+                    <span class="order-price">R<?= number_format($item['price'] * $item['quantity'], 2) ?></span>
                     <span class="order-weight">(<?= number_format($item['weight'], 2) ?>kg each)</span>
                   </li>
                 <?php endforeach; ?>
               </ul>
               <div class="summary-details">
-                <p><strong>Subtotal:</strong> <span>R<?= number_format($cart['total'], 2) ?></span></p>
+                <p><strong>Subtotal:</strong> <span>R<?= number_format($total, 2) ?></span></p>
                 <p><strong>Total Weight:</strong> <span><?= number_format($total_weight, 2) ?> kg</span></p>
                 <p><strong>Shipping:</strong> <span>R<?= number_format($shipping_fee, 2) ?></span></p>
                 <p><strong>Total With Shipping:</strong> <span>R<?= $amount ?></span></p>
