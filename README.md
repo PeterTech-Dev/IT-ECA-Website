@@ -142,10 +142,8 @@ $pdo = new PDO($dsn, $user, $pass, $options);
 ---
 
 ## 🖼️ Screenshots
-```md
-![Home](docs/home.png)
-![Admin Dashboard](docs/admin-dashboard.png)
-```
+![Home](home.png)
+![Admin Dashboard](admin-dashboard.png)
 
 ---
 
